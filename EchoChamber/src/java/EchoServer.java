@@ -8,7 +8,10 @@ import javax.websocket.server.ServerEndpoint;
  import java.util.*;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 /** 
  * @ServerEndpoint gives the relative name for the end point
  * This will be accessed via ws://localhost:8080/EchoChamber/echo
@@ -20,7 +23,16 @@ import java.sql.SQLException;
 public class EchoServer {
    
     public static ArrayList<Session> sessions = new ArrayList<Session>();
-   
+    public static Connection conn;
+               
+
+    public EchoServer(){
+        try{
+            conn=DriverManager.getConnection( "jdbc:derby://localhost:1527/sample","app","app");  
+        }catch(Exception e){
+             System.out.println("Error connecting to database: " + e.getMessage());
+        }
+    }
         
     /**
      * @OnOpen allows us to intercept the creation of a new session.
@@ -45,6 +57,25 @@ public class EchoServer {
     @OnMessage
     public void onMessage(String message, Session session){
         //System.out.println("Message from " + session.getId() + ": " + message);
+        try{
+            System.out.println("exe");
+            Statement stm = conn.createStatement();
+            String Max_ID_Query = " select max(ID) as max_id from APP.LOG";
+            ResultSet rs = stm.executeQuery(Max_ID_Query);
+            rs.next();
+            int max_id  = rs.getInt("max_id")+1;
+            System.out.println(max_id);
+              String query = " Insert into Log (ID,USER_ID,TEXT) values (?,?,?)";
+            PreparedStatement preparedStmt = conn.prepareStatement(query);
+                preparedStmt.setInt (1, max_id);
+                preparedStmt.setInt (2, 1);
+                preparedStmt.setString (3, message);
+            // execute the preparedstatement
+            preparedStmt.execute();
+        }
+        catch(Exception e){
+            System.out.println("Error connecting to database: " + e.getMessage());
+        }
         try {
             for(Session s:sessions){
                  s.getBasicRemote().sendText(message);
