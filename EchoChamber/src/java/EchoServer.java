@@ -12,6 +12,20 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+
+import java.io.UnsupportedEncodingException;
+import java.security.AlgorithmParameters;
+import java.security.GeneralSecurityException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.util.Base64;
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.PBEKeySpec;
+import javax.crypto.spec.SecretKeySpec;
+
 /** 
  * @ServerEndpoint gives the relative name for the end point
  * This will be accessed via ws://localhost:8080/EchoChamber/echo
@@ -24,8 +38,8 @@ public class EchoServer {
    
     public static ArrayList<Session> sessions = new ArrayList<Session>();
     public static Connection conn;
-               
-
+    
+    
     public EchoServer(){
         try{
             conn=DriverManager.getConnection( "jdbc:derby://localhost:1527/sample","app","app");  
@@ -48,6 +62,18 @@ public class EchoServer {
         } catch (IOException ex) {
             ex.printStackTrace();
         }
+        try{
+            Statement stm = conn.createStatement();
+            String query = " select * from APP.LOG";
+            ResultSet rs = stm.executeQuery(query);
+            while(rs.next()){
+                String message = rs.getString("TEXT");
+                int user_id = rs.getInt("USER_ID");
+                session.getBasicRemote().sendText(user_id + " "+message);
+            }
+        }catch(Exception e){
+            System.out.println("Error connecting to database: " + e.getMessage());
+        }
     }
  
     /**
@@ -65,7 +91,7 @@ public class EchoServer {
             rs.next();
             int max_id  = rs.getInt("max_id")+1;
             System.out.println(max_id);
-              String query = " Insert into Log (ID,USER_ID,TEXT) values (?,?,?)";
+            String query = " Insert into Log (ID,USER_ID,TEXT) values (?,?,?)";
             PreparedStatement preparedStmt = conn.prepareStatement(query);
                 preparedStmt.setInt (1, max_id);
                 preparedStmt.setInt (2, 1);
@@ -94,6 +120,38 @@ public class EchoServer {
      */
     @OnClose
     public void onClose(Session session){
+         String encryptedPassword;
+       /*  try{
+            // The salt (probably) can be stored along with the encrypted data
+         byte[] salt = new String("12345678").getBytes();
+
+         // Decreasing this speeds down startup time and can be useful during testing, but it also makes it easier for brute force attackers
+         int iterationCount = 40000;
+         // Other values give me java.security.InvalidKeyException: Illegal key size or default parameters
+         int keyLength = 128;
+         SecretKeySpec key = createSecretKey(System.getProperty("password").toCharArray(),
+         salt, iterationCount, keyLength);
+
+         encryptedPassword = encrypt("1234",key );
+         }
+         catch(Exception e){
+             
+         }*/
         System.out.println("Session " +session.getId()+" has ended");
     }
+    
+    private static String encrypt(String property, SecretKeySpec key) throws GeneralSecurityException, UnsupportedEncodingException {
+        Cipher pbeCipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        pbeCipher.init(Cipher.ENCRYPT_MODE, key);
+        AlgorithmParameters parameters = pbeCipher.getParameters();
+        IvParameterSpec ivParameterSpec = parameters.getParameterSpec(IvParameterSpec.class);
+        byte[] cryptoText = pbeCipher.doFinal(property.getBytes("UTF-8"));
+        byte[] iv = ivParameterSpec.getIV();
+        return base64Encode(iv) + ":" + base64Encode(cryptoText);
+    }
+    
+      private static String base64Encode(byte[] bytes) {
+        return Base64.getEncoder().encodeToString(bytes);
+    }
+
 }
