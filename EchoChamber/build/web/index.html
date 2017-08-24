@@ -16,31 +16,25 @@
        
         <div id="body">
             <div id="title">Welcome to my chat room</div>
-             <div id="input">
-                <div  id = "nameBox" class="nameBox">
-                    Please enter a name
-                </div>
-                <div>
-                    <input type="text" id="messageinput"/>
-                </div>
-
-            </div>
+ 
             
             <form action="login.html">
                 <input type="submit" value="Login" />
             </form>
             
             <table id="conversation" class="black-thin-border">
-            <!--    <tr>
-                    <td id = "nameBox">Please enter a name</td>
-                    <td> <input type="text" id="messageinput"/> </td>
-                </tr> -->
+  
+            <tr>
+                <td class = "hidden_start"> </td>
+            </tr>
+            <tr>
+                <td> <input type="text" id="messageinput" disabled></td>
+            </tr>
             </table>
         </div>
         
         <div>
-           <!-- <button type="button" onclick="openSocket();" >Open</button> -->
-            <button type="button" onclick="send();" >Send</button>
+            <button type="button" onclick="send_chat_data();" >Send</button>
             <button type="button" onclick="closeSocket();" >Log out</button>
         </div>
         <!-- Server responses get written here -->

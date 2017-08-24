@@ -5,16 +5,18 @@
         <title>Login</title>
         <script src="jquery-3.2.1.min.js"></script>
         <script src="chatroom.js"></script>
+        <link rel="stylesheet" href="chatroom.css">
+
     </head>
-    <body>  
-        <!-- <form action="../EchoChamber">
-            <input type="submit" value="Login" />
-        </form>
-        -->
-        
-        <input type="text" id="loginBox"/>
-        <div>
-            <button type="button" onclick="enterName();" >Enter Name</button>
+    <body> 
+        <div id = "login">
+            <div id="signin" >
+                <div>    <input type="text" id="loginBox" value="Enter Name">  </div>
+                <div>    <input type="text" id="passwordBox"  value="Enter Password"></div>
+                <div>
+                    <button type="button"  onclick="login();" >Login</button>
+                </div>
+            </div>
         </div>
     </body>
 </html>

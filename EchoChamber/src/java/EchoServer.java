@@ -1,4 +1,6 @@
+import java.io.File;
 import java.io.IOException;
+import java.io.StringReader;
  
 import javax.websocket.OnClose;
 import javax.websocket.OnMessage;
@@ -10,21 +12,29 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Statement;
 
 import java.io.UnsupportedEncodingException;
+import java.math.BigInteger;
 import java.security.AlgorithmParameters;
 import java.security.GeneralSecurityException;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
 import java.util.Base64;
 import javax.crypto.Cipher;
-import javax.crypto.SecretKey;
-import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.xml.sax.InputSource;
+import org.w3c.dom.NamedNodeMap;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+
+import java.sql.Timestamp;
+
+
+
 
 /** 
  * @ServerEndpoint gives the relative name for the end point
@@ -38,11 +48,20 @@ public class EchoServer {
    
     public static ArrayList<Session> sessions = new ArrayList<Session>();
     public static Connection conn;
+
+ //   public static DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
+ //   public static DocumentBuilder docBuilder;
     
+    private static DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+    private static DocumentBuilder dBuilder;
     
     public EchoServer(){
-        try{
+        try{            
+            dBuilder = dbFactory.newDocumentBuilder();  
             conn=DriverManager.getConnection( "jdbc:derby://localhost:1527/sample","app","app");  
+            
+          
+            
         }catch(Exception e){
              System.out.println("Error connecting to database: " + e.getMessage());
         }
@@ -64,13 +83,27 @@ public class EchoServer {
         }
         try{
             Statement stm = conn.createStatement();
-            String query = " select * from APP.LOG";
+            String query = " select * from APP.LOG order by timestamp asc ";
             ResultSet rs = stm.executeQuery(query);
             while(rs.next()){
                 String message = rs.getString("TEXT");
-                int user_id = rs.getInt("USER_ID");
-                session.getBasicRemote().sendText(user_id + " "+message);
+                String user_id = Integer.toString(rs.getInt("USER_ID"));
+                String timestamp = rs.getString("timestamp");
+                // create xml stuff for all elements
+                
+                String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
+            
+                xml += "<body>";
+                xml += addContentToXML("content","open_connection" );
+                xml += addContentToXML("UserID",user_id );
+                xml += addContentToXML("text", message );
+                xml += addContentToXML("timeStamp", timestamp  );               
+                xml += "</body>";
+                
+                session.getBasicRemote().sendText(xml);
             }
+            
+            
         }catch(Exception e){
             System.out.println("Error connecting to database: " + e.getMessage());
         }
@@ -84,8 +117,42 @@ public class EchoServer {
     public void onMessage(String message, Session session){
         //System.out.println("Message from " + session.getId() + ": " + message);
         try{
-            System.out.println("exe");
-            Statement stm = conn.createStatement();
+            //System.out.println(message);
+            InputSource is = new InputSource(new StringReader(message));
+            Document doc = dBuilder.parse(is);
+            
+            doc.getDocumentElement().normalize();
+            NodeList nList = doc.getElementsByTagName("body");
+            for (int temp = 0; temp < nList.getLength(); temp++) {
+                Node nNode = nList.item(temp);
+
+                if (nNode.getNodeType() == Node.ELEMENT_NODE) {
+                    Element eElement = (Element) nNode;
+                    String content = eElement.getElementsByTagName("content").item(0).getTextContent();
+                    switch(content){
+                        case "chat_data":
+                        addChatData(eElement, message);   
+                        break;
+
+                        case "new_user":
+                        addNewUser(eElement);
+                        break;
+                        
+                        case "login_data":
+                        login(eElement, session);
+                       // return;
+                        break;
+
+                        default:
+                        System.out.println("Problem with content tag");
+                        break;
+                    }
+                }
+            }
+            
+            
+            //go(message);
+         /*   Statement stm = conn.createStatement();
             String Max_ID_Query = " select max(ID) as max_id from APP.LOG";
             ResultSet rs = stm.executeQuery(Max_ID_Query);
             rs.next();
@@ -97,20 +164,12 @@ public class EchoServer {
                 preparedStmt.setInt (2, 1);
                 preparedStmt.setString (3, message);
             // execute the preparedstatement
-            preparedStmt.execute();
+            preparedStmt.execute(); */
         }
         catch(Exception e){
             System.out.println("Error connecting to database: " + e.getMessage());
         }
-        try {
-            for(Session s:sessions){
-                 s.getBasicRemote().sendText(message);
-                 //System.out.println("Message from " + s.getId() + ": " + message);
-            }
-          //  session.getBasicRemote().sendText(message);
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
+        
     }
  
     /**
@@ -121,26 +180,110 @@ public class EchoServer {
     @OnClose
     public void onClose(Session session){
          String encryptedPassword;
-       /*  try{
-            // The salt (probably) can be stored along with the encrypted data
-         byte[] salt = new String("12345678").getBytes();
 
-         // Decreasing this speeds down startup time and can be useful during testing, but it also makes it easier for brute force attackers
-         int iterationCount = 40000;
-         // Other values give me java.security.InvalidKeyException: Illegal key size or default parameters
-         int keyLength = 128;
-         SecretKeySpec key = createSecretKey(System.getProperty("password").toCharArray(),
-         salt, iterationCount, keyLength);
-
-         encryptedPassword = encrypt("1234",key );
-         }
-         catch(Exception e){
-             
-         }*/
         System.out.println("Session " +session.getId()+" has ended");
     }
     
-    private static String encrypt(String property, SecretKeySpec key) throws GeneralSecurityException, UnsupportedEncodingException {
+
+      
+    private void addNewUser(Element eElement){
+        try {
+
+            int user_ID =  Integer.parseInt(eElement.getElementsByTagName("User_ID").item(0).getTextContent());
+            String user_name = eElement.getElementsByTagName("user_name").item(0).getTextContent();
+            String password = eElement.getElementsByTagName("password").item(0).getTextContent();
+
+
+       /*     Statement stm = conn.createStatement();
+            String Max_ID_Query = " select max(ID) as max_id from APP.USERS";
+            ResultSet rs = stm.executeQuery(Max_ID_Query);
+            rs.next(); */
+          //  int max_id  = rs.getInt("max_id")+1;
+            String query = " Insert into USERS (USER_ID,USER_ NAME,PASSWORD) values (?,?,?)";
+            PreparedStatement preparedStmt = conn.prepareStatement(query);
+            preparedStmt.setInt (1, user_ID);
+            preparedStmt.setString (2, user_name);
+            preparedStmt.setString (3, password);
+            preparedStmt.execute();
+
+            
+         } catch (Exception e) {
+            System.out.println("Error connecting to database in new user: " + e.getMessage());
+         }
+    }
+    
+    private void addChatData(Element eElement, String message){
+        try {
+
+                int userID     = Integer.parseInt(eElement.getElementsByTagName("UserID").item(0).getTextContent());
+                String text    = eElement.getElementsByTagName("text").item(0).getTextContent();
+                String  timeStamp =  eElement.getElementsByTagName("timeStamp").item(0).getTextContent(); /*Integer.parseInt(eElement.getElementsByTagName("timeStamp").item(0).getTextContent());*/ 
+
+
+                System.out.println("timestamp :" + timeStamp );
+                Statement stm = conn.createStatement();
+                String Max_ID_Query = " select max(ID) as max_id from APP.LOG";
+                ResultSet rs = stm.executeQuery(Max_ID_Query);
+                rs.next();
+                int max_id  = rs.getInt("max_id")+1;
+                System.out.println(max_id);
+                String query = " Insert into Log (ID,USER_ID,TEXT,timestamp) values (?,?,?,?)";
+                PreparedStatement preparedStmt = conn.prepareStatement(query);
+                preparedStmt.setInt (1, max_id);
+                preparedStmt.setInt (2, userID); 
+                preparedStmt.setString (3, text);
+                preparedStmt.setString(4, timeStamp);//   preparedStmt.setInt (4, timeStamp);
+                preparedStmt.execute();
+                
+                
+                
+                sendMessageToAll(message);
+               
+            
+         } catch (Exception e) {
+            System.out.println("Error connecting to database in chat data: " + e.getMessage());
+         }
+    } 
+    
+    private void login(Element eElement, Session session ){
+        try{
+            String login = eElement.getElementsByTagName("login").item(0).getTextContent();
+            String password = eElement.getElementsByTagName("password").item(0).getTextContent();
+      //      String timeStamp = eElement.getElementsByTagName("timestamp").item(0).getTextContent();
+
+        
+        Statement stm = conn.createStatement();
+        String query = "Select USER_ID from Users where user_name = '"+login+"' and password = '"+password+"'  ";
+        ResultSet rs = stm.executeQuery(query);
+        
+        int user_id = -1;
+        if(rs.next()){
+            user_id  = rs.getInt("USER_ID");
+            System.out.println(user_id);
+         
+        }
+        else{
+            System.out.println("not a user");
+        }
+        
+        
+        String message = "";
+        message += startXML();
+        message += addContentToXML("content", "login");
+        message += addContentToXML("user_id", Integer.toString(user_id));
+        message += endXML();
+        session.getBasicRemote().sendText(message);
+        
+        
+        System.out.println("login");
+        }catch(Exception e){
+            System.out.println("problem with login: " + e.getMessage());
+        }
+    }
+    
+   
+    
+        private static String encrypt(String property, SecretKeySpec key) throws GeneralSecurityException, UnsupportedEncodingException {
         Cipher pbeCipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
         pbeCipher.init(Cipher.ENCRYPT_MODE, key);
         AlgorithmParameters parameters = pbeCipher.getParameters();
@@ -153,5 +296,28 @@ public class EchoServer {
       private static String base64Encode(byte[] bytes) {
         return Base64.getEncoder().encodeToString(bytes);
     }
+
+      
+      private void sendMessageToAll(String message){
+        try {
+          for(Session s:sessions){
+               s.getBasicRemote().sendText(message);
+          }
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+      }
+      
+       private static String addContentToXML(String tag, String content){
+        return "<"+ tag + ">" + content + "</" + tag + ">";
+    }
+      
+      private static String startXML(){
+          return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><body>";
+      }
+      
+       private static String endXML(){
+          return "</body>";
+      }
 
 }
