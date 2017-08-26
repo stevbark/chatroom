@@ -83,12 +83,13 @@ public class EchoServer {
         }
         try{
             Statement stm = conn.createStatement();
-            String query = " select * from APP.LOG order by timestamp asc ";
+            String query = " select * from APP.LOG Inner Join APP.USERS on LOG.user_id = USERS.user_id order by timestamp asc ";
             ResultSet rs = stm.executeQuery(query);
             while(rs.next()){
                 String message = rs.getString("TEXT");
                 String user_id = Integer.toString(rs.getInt("USER_ID"));
                 String timestamp = rs.getString("timestamp");
+                 String name = rs.getString("user_name");
                 // create xml stuff for all elements
                 
                 String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
@@ -97,7 +98,8 @@ public class EchoServer {
                 xml += addContentToXML("content","open_connection" );
                 xml += addContentToXML("UserID",user_id );
                 xml += addContentToXML("text", message );
-                xml += addContentToXML("timeStamp", timestamp  );               
+                xml += addContentToXML("timeStamp", timestamp  );         
+                xml += addContentToXML("name", name  );            
                 xml += "</body>";
                 
                 session.getBasicRemote().sendText(xml);
@@ -135,12 +137,12 @@ public class EchoServer {
                         break;
 
                         case "new_user":
+                          //  System.out.println("new user:" +eElement.getElementsByTagName("new_user").item(0).getTextContent());
                         addNewUser(eElement);
                         break;
                         
                         case "login_data":
                         login(eElement, session);
-                       // return;
                         break;
 
                         default:
@@ -179,7 +181,9 @@ public class EchoServer {
      */
     @OnClose
     public void onClose(Session session){
-         String encryptedPassword;
+        // String encryptedPassword;
+         
+         sessions.remove(session);
 
         System.out.println("Session " +session.getId()+" has ended");
     }
@@ -189,21 +193,23 @@ public class EchoServer {
     private void addNewUser(Element eElement){
         try {
 
-            int user_ID =  Integer.parseInt(eElement.getElementsByTagName("User_ID").item(0).getTextContent());
-            String user_name = eElement.getElementsByTagName("user_name").item(0).getTextContent();
+            //int user_ID =  Integer.parseInt(eElement.getElementsByTagName("User_ID").item(0).getTextContent());
+            String user_name = eElement.getElementsByTagName("new_user").item(0).getTextContent();
             String password = eElement.getElementsByTagName("password").item(0).getTextContent();
+            String  timeStamp =  eElement.getElementsByTagName("timestamp").item(0).getTextContent(); 
 
-
-       /*     Statement stm = conn.createStatement();
-            String Max_ID_Query = " select max(ID) as max_id from APP.USERS";
+            Statement stm = conn.createStatement();
+            String Max_ID_Query = " select max(user_ID) as max_id from APP.USERS";
             ResultSet rs = stm.executeQuery(Max_ID_Query);
-            rs.next(); */
-          //  int max_id  = rs.getInt("max_id")+1;
-            String query = " Insert into USERS (USER_ID,USER_ NAME,PASSWORD) values (?,?,?)";
+            rs.next(); 
+            int max_id  = rs.getInt("max_id")+1;
+
+            String query = "Insert into USERS (user_ID, USER_NAME,PASSWORD,created_timestamp) values (?,?,?,?)";
             PreparedStatement preparedStmt = conn.prepareStatement(query);
-            preparedStmt.setInt (1, user_ID);
+            preparedStmt.setInt (1, max_id);
             preparedStmt.setString (2, user_name);
             preparedStmt.setString (3, password);
+            preparedStmt.setString (4, timeStamp);
             preparedStmt.execute();
 
             
@@ -235,6 +241,8 @@ public class EchoServer {
                 preparedStmt.setString(4, timeStamp);//   preparedStmt.setInt (4, timeStamp);
                 preparedStmt.execute();
                 
+                
+     
                 
                 
                 sendMessageToAll(message);
@@ -301,8 +309,14 @@ public class EchoServer {
       private void sendMessageToAll(String message){
         try {
           for(Session s:sessions){
-               s.getBasicRemote().sendText(message);
+            if(s.isOpen()){
+                s.getBasicRemote().sendText(message);   
+            }
+            
+            
+               
           }
+          System.out.println("size = " + sessions.size());
         } catch (IOException ex) {
             ex.printStackTrace();
         }

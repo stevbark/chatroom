@@ -15,12 +15,27 @@
 
        
         <div id="body">
-            <div id="title">Welcome to my chat room</div>
+            <div id="title">Welcome to my chat room <label id="name"></label></div>
  
+             <div id="signin" >
+                <div>    <input type="text" id="loginBox" placeholder="Enter Name">  </div>
+                <div>    <input type="text" id="passwordBox"  placeholder="Enter Password"></div>
+                <div>
+                    <button type="button"  onclick="login();" >Login(Signon)</button>
+                </div>
+            </div>
             
-            <form action="login.html">
+            <div id="signin" >
+                <div>    <input type="text" id="NewName" placeholder="Enter New User Name">  </div>
+                <div>    <input type="text" id="NewPassword"  placeholder="Enter New Password"></div>
+                <div>
+                    <button type="button"  onclick="newUser();" >Create profile</button>
+                </div>
+            </div>
+            
+<!--            <form action="login.html">
                 <input type="submit" value="Login" />
-            </form>
+            </form>--> 
             
             <table id="conversation" class="black-thin-border">
   
@@ -28,7 +43,7 @@
                 <td class = "hidden_start"> </td>
             </tr>
             <tr>
-                <td> <input type="text" id="messageinput" disabled></td>
+                <td> <input type="text" id="messageinput" ></td>
             </tr>
             </table>
         </div>
