@@ -1,0 +1,12 @@
+I download NetBeans IDE 8.2
+
+I set the context path to '/EchoChamber'.
+
+I created a database at 'jdbc:derby://localhost:1527/sample' database name 'app'
+
+
+I created 2 tables in the database. 'Users' and 'LOG'.
+
+Log has 4 columns. ID (BigInt)(Primary Key), TEXT(VARCHAR), USER_ID(SMALL_INT), TIMESTAMP(VARCHAR)
+
+USERS had 4 columns.  USER_ID(SMALL_INT)(Primary Key), USER_NAME(VARCHAR), PASSWORD(VARCHAR), CREATED_TIMESTAMP(VARCHAR)
