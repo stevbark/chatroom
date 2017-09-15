@@ -1,10 +1,9 @@
                        
             var webSocket;
             var messages = document.getElementById("messages");
-            var name = "Anony";  
+            var name = "Anonymous";  
             var userID = -1;
-//         var name = "Stephen";  
-//            var userID = 1;
+
 
             console.log(Date.now());
 
@@ -17,8 +16,7 @@
                 if(name !== ""){
                      $("#title")[0].replaceWith(name);
                 }
-              //  console.log(name);
-             // $("#signin").hide();
+
 
             }
            
@@ -40,19 +38,17 @@
                  * Binds functions to the listeners for the websocket.
                  */
                 webSocket.onopen = function(event){
-                    // For reasons I can't determine, onopen gets called twice
-                    // and the first time event.data is undefined.
-                    // Leave a comment if you know the answer.
-                    if(event.data === undefined)
+                    
+                    if(event.data === undefined){
                         return;
- 
+                    }
+                    
                     writeResponse(event.data);
                    
                 };
  
                 webSocket.onmessage = function(event){
                     parseXMLText(event.data);
-                    //writeResponse(event.data);
                 };
  
                 webSocket.onclose = function(event){
@@ -88,19 +84,7 @@
                      if(e.which === 13) {  
                          send_chat_data();
                      }
-                     else{
-                        // var text = $("#messageinput")[0].value;
-                        /* var inputChar = String.fromCharCode(e.which);
-                          $("#messageinput").val(function() {
-                                return this.value + inputChar;
-                           });
-                           
-                        var ddl = document.getElementById("messageinput");
-                        var selectedValue = ddl.options[ddl.selectedIndex].value;
-                        console.log("dll:" + dll);
-                        console.log("selected:" + selectedValue); */
-                        
-                     }
+                     
                  });
             });
             
@@ -136,9 +120,8 @@
                 webSocket.send(xml);
                 $("#messageinput")[0].value = "";
                 
-              //  webSocket.send("name: " + xml);
                 
-                $("#signin").hide();
+                
             }
             
             function newUser(){
@@ -155,10 +138,8 @@
                 xml += addContentToXML("password", password );
                 xml += addContentToXML("timestamp", Date.now()  );               
                 xml += "</body>";
-                console.log(xml);
                 webSocket.send(xml);
-                passwordBox.value = "";
-                newUserBox.value = "";
+                
             }
             
             
@@ -173,28 +154,16 @@
                     xmlDoc = parser.parseFromString(xml,"text/xml");
                     
                     var content = xmlDoc.getElementsByTagName("content")[0].childNodes[0].nodeValue;
-                    if(content ==="login"){
+                    if(content ==="login" || content === "new_user"){
                         var user_id = xmlDoc.getElementsByTagName("user_id")[0].childNodes[0].nodeValue;
-                        if(user_id != -1){
-                            userID = user_id;
-                            name = $("#loginBox")[0].value;
-                        //    console.log(name);
-                         //   alert("user: " + user);
-                        //    document.location.href = "http://localhost:8080/EchoChamber/";
-                           
-                           
-                        }
-                        else{
-                            alert("name or password does not exist")
-                        }
+                        var name = xmlDoc.getElementsByTagName("name")[0].childNodes[0].nodeValue;
+                        loginAs(name,user_id);
                     }
                     else{
-                      //  console.log("xml:" + xml);
-                       //User_name= "-1";
+
                         var User_name = xmlDoc.getElementsByTagName("name")[0].childNodes[0].nodeValue;
                         var text = xmlDoc.getElementsByTagName("text")[0].childNodes[0].nodeValue;
                         var timestamp = xmlDoc.getElementsByTagName("timeStamp")[0].childNodes[0].nodeValue;
-                        // convert timestamp properly 
                         var ts = parseInt(timestamp);
                         var date = new Date(ts);
                         var monthNames = ["January", "February", "March", "April", "May", "June",
@@ -212,6 +181,33 @@
                 //console.log("xml:" + u + " "  + t + " " + ts);
                 }
                 
+            }
+            
+            function loginAs( loginName,  loginId){
+                if(loginId != -1){
+                            if($("#NewName").length > 0){
+                               var newUserBox = $("#NewName")[0]; 
+                               newUserBox.value = "";
+                            }
+                             if($("#NewPassword").length > 0){
+                                var passwordBox = $("#NewPassword")[0]; 
+                               passwordBox.value = "";
+                            }
+                            
+                            userID = loginId;
+                            name = loginName;                            
+                            $("#signin").hide();
+                            $("#signup").hide();
+                            
+                        //    console.log(name);
+                         //   alert("user: " + user);
+                        //    document.location.href = "http://localhost:8080/EchoChamber/";
+                           
+                           
+                        }
+                        else{
+                            alert("name or password does not exist")
+                        }
             }
                     
 

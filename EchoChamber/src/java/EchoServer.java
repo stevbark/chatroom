@@ -15,23 +15,17 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 
 import java.io.UnsupportedEncodingException;
-import java.math.BigInteger;
 import java.security.AlgorithmParameters;
 import java.security.GeneralSecurityException;
 import java.util.Base64;
-import javax.crypto.Cipher;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.xml.sax.InputSource;
-import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-import java.sql.Timestamp;
 
 
 
@@ -49,8 +43,6 @@ public class EchoServer {
     public static ArrayList<Session> sessions = new ArrayList<Session>();
     public static Connection conn;
 
- //   public static DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
- //   public static DocumentBuilder docBuilder;
     
     private static DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
     private static DocumentBuilder dBuilder;
@@ -117,9 +109,7 @@ public class EchoServer {
      */
     @OnMessage
     public void onMessage(String message, Session session){
-        //System.out.println("Message from " + session.getId() + ": " + message);
         try{
-            //System.out.println(message);
             InputSource is = new InputSource(new StringReader(message));
             Document doc = dBuilder.parse(is);
             
@@ -137,8 +127,7 @@ public class EchoServer {
                         break;
 
                         case "new_user":
-                          //  System.out.println("new user:" +eElement.getElementsByTagName("new_user").item(0).getTextContent());
-                        addNewUser(eElement);
+                        addNewUser(eElement,session);
                         break;
                         
                         case "login_data":
@@ -152,21 +141,7 @@ public class EchoServer {
                 }
             }
             
-            
-            //go(message);
-         /*   Statement stm = conn.createStatement();
-            String Max_ID_Query = " select max(ID) as max_id from APP.LOG";
-            ResultSet rs = stm.executeQuery(Max_ID_Query);
-            rs.next();
-            int max_id  = rs.getInt("max_id")+1;
-            System.out.println(max_id);
-            String query = " Insert into Log (ID,USER_ID,TEXT) values (?,?,?)";
-            PreparedStatement preparedStmt = conn.prepareStatement(query);
-                preparedStmt.setInt (1, max_id);
-                preparedStmt.setInt (2, 1);
-                preparedStmt.setString (3, message);
-            // execute the preparedstatement
-            preparedStmt.execute(); */
+
         }
         catch(Exception e){
             System.out.println("Error connecting to database: " + e.getMessage());
@@ -181,7 +156,6 @@ public class EchoServer {
      */
     @OnClose
     public void onClose(Session session){
-        // String encryptedPassword;
          
          sessions.remove(session);
 
@@ -190,10 +164,9 @@ public class EchoServer {
     
 
       
-    private void addNewUser(Element eElement){
+    private void addNewUser(Element eElement,Session session ){
         try {
 
-            //int user_ID =  Integer.parseInt(eElement.getElementsByTagName("User_ID").item(0).getTextContent());
             String user_name = eElement.getElementsByTagName("new_user").item(0).getTextContent();
             String password = eElement.getElementsByTagName("password").item(0).getTextContent();
             String  timeStamp =  eElement.getElementsByTagName("timestamp").item(0).getTextContent(); 
@@ -211,6 +184,15 @@ public class EchoServer {
             preparedStmt.setString (3, password);
             preparedStmt.setString (4, timeStamp);
             preparedStmt.execute();
+            
+            String message = "";
+            message += startXML();
+            message += addContentToXML("content", "login");
+            message += addContentToXML("user_id", Integer.toString(max_id));
+            message += addContentToXML("name", user_name);
+            message += endXML();
+            
+             session.getBasicRemote().sendText(message);
 
             
          } catch (Exception e) {
@@ -223,8 +205,7 @@ public class EchoServer {
 
                 int userID     = Integer.parseInt(eElement.getElementsByTagName("UserID").item(0).getTextContent());
                 String text    = eElement.getElementsByTagName("text").item(0).getTextContent();
-                String  timeStamp =  eElement.getElementsByTagName("timeStamp").item(0).getTextContent(); /*Integer.parseInt(eElement.getElementsByTagName("timeStamp").item(0).getTextContent());*/ 
-
+                String  timeStamp =  eElement.getElementsByTagName("timeStamp").item(0).getTextContent(); 
 
                 System.out.println("timestamp :" + timeStamp );
                 Statement stm = conn.createStatement();
@@ -238,7 +219,7 @@ public class EchoServer {
                 preparedStmt.setInt (1, max_id);
                 preparedStmt.setInt (2, userID); 
                 preparedStmt.setString (3, text);
-                preparedStmt.setString(4, timeStamp);//   preparedStmt.setInt (4, timeStamp);
+                preparedStmt.setString(4, timeStamp);
                 preparedStmt.execute();
                 
                 
@@ -257,7 +238,6 @@ public class EchoServer {
         try{
             String login = eElement.getElementsByTagName("login").item(0).getTextContent();
             String password = eElement.getElementsByTagName("password").item(0).getTextContent();
-      //      String timeStamp = eElement.getElementsByTagName("timestamp").item(0).getTextContent();
 
         
         Statement stm = conn.createStatement();
@@ -265,6 +245,7 @@ public class EchoServer {
         ResultSet rs = stm.executeQuery(query);
         
         int user_id = -1;
+        String name = "anonymous";
         if(rs.next()){
             user_id  = rs.getInt("USER_ID");
             System.out.println(user_id);
@@ -279,6 +260,7 @@ public class EchoServer {
         message += startXML();
         message += addContentToXML("content", "login");
         message += addContentToXML("user_id", Integer.toString(user_id));
+        message += addContentToXML("name", login);
         message += endXML();
         session.getBasicRemote().sendText(message);
         
@@ -287,22 +269,6 @@ public class EchoServer {
         }catch(Exception e){
             System.out.println("problem with login: " + e.getMessage());
         }
-    }
-    
-   
-    
-        private static String encrypt(String property, SecretKeySpec key) throws GeneralSecurityException, UnsupportedEncodingException {
-        Cipher pbeCipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-        pbeCipher.init(Cipher.ENCRYPT_MODE, key);
-        AlgorithmParameters parameters = pbeCipher.getParameters();
-        IvParameterSpec ivParameterSpec = parameters.getParameterSpec(IvParameterSpec.class);
-        byte[] cryptoText = pbeCipher.doFinal(property.getBytes("UTF-8"));
-        byte[] iv = ivParameterSpec.getIV();
-        return base64Encode(iv) + ":" + base64Encode(cryptoText);
-    }
-    
-      private static String base64Encode(byte[] bytes) {
-        return Base64.getEncoder().encodeToString(bytes);
     }
 
       
