@@ -60,7 +60,7 @@
              * Sends the value of the text input to the server
              */
             function send_chat_data(){
-                var text = $("#messageinput")[0].value;
+                var text =encodeURI($("#messageinput")[0].value);
                 
                 if(text.length > 0){
                     var xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
@@ -97,10 +97,15 @@
                  $("#conversation").append("<tr><td>"+text+"</td></tr>");
             }
                        
+             //https://stackoverflow.com/questions/24816/escaping-html-strings-with-jquery          
             function updateChat(user, text, timestamp){
-                 $("#conversation").append("<tr><td>"+user+"</td><td>"+text+"</td><td>"+timestamp+"</td></tr>");
+                var htmlString = decodeURI(text);
+                var escaped = $("<div>").text(htmlString).html();
+                 $("#conversation").append("<tr><td>"+user+"</td><td>"+escaped+"</td><td>"+timestamp+"</td></tr>");
             } 
 
+
+          
 
             function login(){
                 var loginBox = $("#loginBox")[0];
@@ -178,7 +183,6 @@
                         var dateString =  monthNames[date.getMonth()] + " " + date.getDate() + ", " + date.getFullYear()+ " at " + hours + ":" + date.getMinutes() + " " + ampm;
                         updateChat(User_name,text,dateString);
                     }
-                //console.log("xml:" + u + " "  + t + " " + ts);
                 }
                 
             }
@@ -198,10 +202,6 @@
                             name = loginName;                            
                             $("#signin").hide();
                             $("#signup").hide();
-                            
-                        //    console.log(name);
-                         //   alert("user: " + user);
-                        //    document.location.href = "http://localhost:8080/EchoChamber/";
                            
                            
                         }
